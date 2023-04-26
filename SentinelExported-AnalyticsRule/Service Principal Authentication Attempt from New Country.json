@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/c9d34f67-a9d7-4921-920b-98cc172527f2')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/c9d34f67-a9d7-4921-920b-98cc172527f2')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "Service Principal Authentication Attempt from New Country",
+        "description": "Detects when there is a Service Principal login attempt from a country that has not seen a successful login in the previous 14 days.\n  Threat actors may attempt to authenticate with credentials from compromised accounts - monitoring attempts from anomalous locations may help identify these attempts.\n  Authentication attempts should be investigated to ensure the activity was legitimate and if there is other similar activity.\n  Ref: https://docs.microsoft.com/azure/active-directory/fundamentals/security-operations-user-accounts#monitoring-for-failed-unusual-sign-ins",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "ServicePrincipalName",
+                "identifier": "Name"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "let known_locations = (\n  AADServicePrincipalSignInLogs\n  | where TimeGenerated between(ago(14d)..ago(1d))\n  | where ResultType == 0\n  | summarize by Location);\n  AADServicePrincipalSignInLogs\n  | where TimeGenerated > ago(1d)\n  | where ResultType != 50126\n  | where Location !in (known_locations)\n  | extend City = tostring(parse_json(LocationDetails).city)\n  | extend State = tostring(parse_json(LocationDetails).state)\n  | extend Place = strcat(City, \" - \", State)\n  | extend Result = strcat(tostring(ResultType), \" - \", ResultDescription)\n  | summarize FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), make_set(Result), make_set(IPAddress), make_set(Place) by ServicePrincipalName, Location",
+        "queryPeriod": "P14D",
+        "queryFrequency": "P1D",
+        "sentinelEntitiesMappings": null,
+        "severity": "Medium",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "InitialAccess"
+        ],
+        "techniques": [
+          "T1078"
+        ],
+        "templateVersion": "1.0.1",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "1baaaf00-655f-4de9-8ff8-312e902cda71",
+        "enabled": true
+      }
+    }
+  ]
+}
