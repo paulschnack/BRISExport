@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/ac138413-97dc-420f-9678-8f4bd9190f6f')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/ac138413-97dc-420f-9678-8f4bd9190f6f')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "DSRM Account Abuse",
+        "description": "This query detects an abuse of the DSRM account in order to maintain persistence and access to the organization's Active Directory.\nRef: https://adsecurity.org/?p=1785",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "RegistryKey",
+            "fieldMappings": [
+              {
+                "columnName": "TargetObject",
+                "identifier": "Key"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "Computer",
+                "identifier": "FullName"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "Event\n| where EventLog == \"Microsoft-Windows-Sysmon/Operational\" and EventID in (13)\n| parse EventData with * 'TargetObject\">' TargetObject \"<\" * 'Details\">' Details \"<\" * \n| where TargetObject has (\"HKLM\\\\System\\\\CurrentControlSet\\\\Control\\\\Lsa\\\\DsrmAdminLogonBehavior\") and Details == \"DWORD (0x00000002)\"\n| summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated) by EventID, Computer,  TargetObject, Details",
+        "queryPeriod": "PT1H",
+        "queryFrequency": "PT1H",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "Persistence"
+        ],
+        "techniques": [
+          "T1098"
+        ],
+        "templateVersion": "1.0.1",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "979c42dd-533e-4ede-b18b-31a84ba8b3d6",
+        "enabled": true
+      }
+    }
+  ]
+}
