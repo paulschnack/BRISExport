@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/d232f502-84ae-48c9-aa6c-bc3ea167208c')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/d232f502-84ae-48c9-aa6c-bc3ea167208c')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "MLBehaviorAnalytics",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "alertRuleTemplateName": "737a2ce1-70a3-4968-9e90-3e6aca836abf",
+        "enabled": true
+      }
+    }
+  ]
+}
