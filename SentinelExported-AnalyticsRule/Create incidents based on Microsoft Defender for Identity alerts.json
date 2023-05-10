@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/9d12684c-d407-4315-a6a7-426360c240b3')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/9d12684c-d407-4315-a6a7-426360c240b3')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "MicrosoftSecurityIncidentCreation",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "Create incidents based on Microsoft Defender for Identity alerts",
+        "description": "Create incidents based on all alerts generated in Microsoft Defender for Identity",
+        "displayNamesExcludeFilter": null,
+        "displayNamesFilter": null,
+        "productFilter": "Azure Advanced Threat Protection",
+        "severitiesFilter": null,
+        "alertRuleTemplateName": "40ba9493-4183-4eee-974f-87fe39c8f267",
+        "enabled": true
+      }
+    }
+  ]
+}
