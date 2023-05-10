@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/2ce7f00d-3b3c-41b9-ae9a-b79c19d2394e')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/2ce7f00d-3b3c-41b9-ae9a-b79c19d2394e')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "Conditional Access - A Conditional Access user/group/role exclusion has changed",
+        "description": "A Conditional Access user/group/role exclusion has changed in Azure AD.",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "modifiedBy",
+                "identifier": "AadUserId"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": true,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT1H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "// A Conditional Access user/group/role exclusion has changed.\r\nAuditLogs\r\n| where OperationName  in (\"Update conditional access policy\")\r\n| extend excludeUsersOld=extractjson(\"$.conditions.users.excludeUsers\", tostring(TargetResources[0].modifiedProperties[0].oldValue))\r\n| extend excludeGroupsOld=extractjson(\"$.conditions.users.excludeGroups\", tostring(TargetResources[0].modifiedProperties[0].oldValue))\r\n| extend excludeRolesOld=extractjson(\"$.conditions.users.excludeRoles\", tostring(TargetResources[0].modifiedProperties[0].oldValue))\r\n| extend excludeUsersNew=extractjson(\"$.conditions.users.excludeUsers\", tostring(TargetResources[0].modifiedProperties[0].newValue))\r\n| extend excludeGroupsNew=extractjson(\"$.conditions.users.excludeGroups\", tostring(TargetResources[0].modifiedProperties[0].newValue))\r\n| extend excludeRolesNew=extractjson(\"$.conditions.users.excludeRoles\", tostring(TargetResources[0].modifiedProperties[0].newValue))\r\n| where excludeUsersOld != excludeUsersNew or excludeGroupsOld != excludeGroupsNew or excludeRolesOld != excludeRolesNew\r\n| project TimeGenerated, OperationName, policy=TargetResources[0].displayName, modifiedBy=InitiatedBy.user.userPrincipalName, result=Result, excludeUsersOld, excludeUsersNew, excludeGroupsOld, excludeGroupsNew, excludeRolesOld, excludeRolesNew\r\n| order by TimeGenerated desc",
+        "queryPeriod": "PT5M",
+        "queryFrequency": "PT5M",
+        "sentinelEntitiesMappings": null,
+        "severity": "Low",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [],
+        "techniques": [],
+        "templateVersion": null,
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": null,
+        "enabled": true
+      }
+    }
+  ]
+}

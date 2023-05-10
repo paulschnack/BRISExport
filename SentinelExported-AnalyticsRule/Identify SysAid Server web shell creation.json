@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/d931a82f-c8b1-4ca7-86f4-a9455bf033d9')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/d931a82f-c8b1-4ca7-86f4-a9455bf033d9')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "Identify SysAid Server web shell creation",
+        "description": "This query looks for potential webshell creation by the threat actor Mercury after the sucessful exploitation of SysAid server. \nReference:  https://www.microsoft.com/security/blog/2022/08/25/mercury-leveraging-log4j-2-vulnerabilities-in-unpatched-systems-to-target-israeli-organizations/",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "AccountCustomEntity",
+                "identifier": "FullName"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "HostCustomEntity",
+                "identifier": "FullName"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "let timeframe = 1d;\nlet time_window = 5m;\n(union isfuzzy=true\n(SecurityEvent\n| where TimeGenerated > ago(timeframe)\n| where EventID == 4688\n| where Process has_any (\"java.exe\", \"javaw.exe\") and CommandLine has \"SysAidServer\" \n| summarize by ParentProcessName,Process, Account, Computer, CommandLine, timekey= bin(TimeGenerated, time_window), TimeGenerated, SubjectLogonId\n| join kind=inner(\nSecurityEvent\n| where TimeGenerated > ago(timeframe)\n| where EventID == 4663\n| where Process has_any (\"java.exe\", \"javaw.exe\")\n| where AccessMask in ('0x2','0x100', '0x10', '0x4')\n| where ObjectName endswith \".jsp\" \n| summarize by ParentProcessName, Account, Computer, ObjectName, ProcessName, timekey= bin(TimeGenerated, time_window), TimeGenerated, SubjectLogonId)\n on timekey, Computer, SubjectLogonId\n| extend timestamp = TimeGenerated, AccountCustomEntity = Account, HostCustomEntity = Computer\n),\n(DeviceFileEvents \n| where InitiatingProcessFileName has_any (\"java.exe\", \"javaw.exe\")  \n| where InitiatingProcessCommandLine has \"SysAidServer\"  \n| where FileName endswith \".jsp\" \n| extend timestamp = TimeGenerated, AccountCustomEntity = InitiatingProcessAccountName, HostCustomEntity = DeviceName\n),\n(imFileEvent\n| where TimeGenerated > ago(timeframe)\n| where EventType == \"FileCreated\"\n| where ActingProcessName has_any (\"java.exe\", \"javaw.exe\") \n| where ActingProcessCommandLine has \"SysAidServer\"  \n| where FilePath endswith \".jsp\" \n| extend timestamp = TimeGenerated, AccountCustomEntity = ActorUsername, HostCustomEntity = DvcHostname\n)\n)",
+        "queryPeriod": "P1D",
+        "queryFrequency": "P1D",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "InitialAccess"
+        ],
+        "techniques": [
+          "T1190"
+        ],
+        "templateVersion": "1.0.1",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "50eb4cbd-188f-44f4-b964-bab84dcdec10",
+        "enabled": true
+      }
+    }
+  ]
+}
