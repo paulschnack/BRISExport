@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/663e1da0-5c5a-4506-a0df-36e4cf09761c')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/663e1da0-5c5a-4506-a0df-36e4cf09761c')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "Service Principal Name (SPN) Assigned to User Account",
+        "description": "This query identifies whether a Active Directory user object was assigned a service principal name which could indicate that an adversary is preparing for performing Kerberoasting. \nThis query checks for event id 5136 that the Object Class field is \"user\" and the LDAP Display Name is \"servicePrincipalName\".\nRef: https://thevivi.net/assets/docs/2019/theVIVI-AD-Security-Workshop_AfricaHackon2019.pdf",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "SubjectAccount",
+                "identifier": "FullName"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "Computer",
+                "identifier": "FullName"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "SecurityEvent\n| where EventID == 5136 \n| parse EventData with * 'AttributeLDAPDisplayName\">' AttributeLDAPDisplayName \"<\" *\n| parse EventData with * 'ObjectClass\">' ObjectClass \"<\" *\n| where AttributeLDAPDisplayName == \"servicePrincipalName\" and  ObjectClass == \"user\"\n| parse EventData with * 'ObjectDN\">' ObjectDN \"<\" *\n| parse EventData with * 'AttributeValue\">' AttributeValue \"<\" *\n| summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by Computer, SubjectAccount, ObjectDN, AttributeValue",
+        "queryPeriod": "PT1H",
+        "queryFrequency": "PT1H",
+        "sentinelEntitiesMappings": null,
+        "severity": "Medium",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "PrivilegeEscalation"
+        ],
+        "techniques": [
+          "T1134"
+        ],
+        "templateVersion": "1.0.2",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "875d0eb1-883a-4191-bd0e-dbfdeb95a464",
+        "enabled": true
+      }
+    }
+  ]
+}
