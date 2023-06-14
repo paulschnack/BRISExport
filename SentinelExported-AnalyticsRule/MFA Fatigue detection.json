@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/6df2754a-9944-4777-91be-a8a99d3b3724')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/6df2754a-9944-4777-91be-a8a99d3b3724')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "MFA Fatigue detection",
+        "description": "Based on https://www.fortian.com.au/blog/understanding-the-intracacies-of-aad-sign-in-logs-to-detect-mfa-fatigue-attacks.html\nCreated June 2023",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": null,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "\t//Title: Potential MFA fatigue attack\r\n\t//TTPs: T1621\r\n\t//Cadence: 20 minutes\r\n\tlet data=materialize (SigninLogs); //Materialize the data for efficiency.\r\n\tlet interval = 20m; //Set bin range interval. \r\n\tlet threshold = 3; //Set MFA prompt threshold.\r\n\tdata\r\n\t| join kind=inner(data //Do this as a separate query so we can pass the results back to our main query and ensure we don't lose any important log context.\r\n\t\t| mv-expand todynamic(AuthenticationDetails) //Unpack the AuthenticationDetails array so we can extract the unique timestamps of MFA deny events. \r\n\t\t| extend AuthStepResult = tostring(AuthenticationDetails.authenticationStepResultDetail)\r\n\t\t| extend AuthStepTime = todatetime(AuthenticationDetails.authenticationStepDateTime)\r\n\t\t| where AuthStepResult has \"MFA denied\" //Find only those which contain an MFA deny. \r\n\t\t| summarize arg_max(CreatedDateTime, *) by CorrelationId, AuthStepTime //Get the unique timestamps per correlation ID value which contained an MFA deny. \r\n\t\t| extend MFAEvents = pack(\"AuthenticationStepTime\", AuthStepTime, \"FlowEvent\", AuthStepResult) //Pack the unique MFA deny events so we can pass this information back later. \r\n\t\t| summarize AppsTargeted = make_set(AppDisplayName), MFAEvents = make_list(MFAEvents), arg_max(CreatedDateTime, *) by CorrelationId //Count the number of unique MFA deny events per correlation ID.\r\n\t\t| extend MFAFailures = array_length(MFAEvents)\r\n\t\t| distinct CorrelationId, MFAFailures, tostring(MFAEvents)) on CorrelationId //Join on correlation ID so we can retrieve the original log record along with our additional data about MFA deny events. \r\n\t| summarize arg_max(CreatedDateTime, *) by CorrelationId \r\n\t| summarize StartTime = min(CreatedDateTime), EndTime = max(CreatedDateTime), TotalMFAFailure = sum(MFAFailures), CorerlationIDs = make_set(CorrelationId), UniqueCorrelationIDs = dcount(CorrelationId), MFAEvents = make_set(MFAEvents), AppsTargeted = make_set(AppDisplayName), arg_max(TimeGenerated, *) by UserPrincipalName, BinTime = bin(CreatedDateTime, interval) //Count MFA the number of MFA prompt events across all sessions for each UPN. \r\n\t| extend Reason = strcat(UserPrincipalName, \" received \", TotalMFAFailure, \" MFA deny events to the application \", AppsTargeted, \" from the IPaddress \", IPAddress) //Add context to aid investigation. \r\n\t| project-reorder TimeGenerated, StartTime, EndTime, TotalMFAFailure, Reason, MFAEvents, ResultType, ResultDescription, CorrelationId\r\n\t| where TotalMFAFailure >= threshold\t",
+        "queryPeriod": "PT20M",
+        "queryFrequency": "PT20M",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "CredentialAccess"
+        ],
+        "techniques": [
+          "T1621"
+        ],
+        "templateVersion": null,
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": null,
+        "enabled": true
+      }
+    }
+  ]
+}
