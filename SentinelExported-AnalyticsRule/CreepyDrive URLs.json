@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e682230f-9f95-433c-b9ea-3e1ebb340cab')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/e682230f-9f95-433c-b9ea-3e1ebb340cab')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "CreepyDrive URLs",
+        "description": "CreepyDrive uses OneDrive for command and control. This detection identifies URLs specific to CreepyDrive.",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "SourceIP",
+                "identifier": "Address"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "SourceHostName",
+                "identifier": "HostName"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "let oneDriveCalls = dynamic(['graph.microsoft.com/v1.0/me/drive/root:/Documents/data.txt:/content','graph.microsoft.com/v1.0/me/drive/root:/Documents/response.json:/content']);\nlet oneDriveCallsRegex = dynamic([@'graph\\.microsoft\\.com\\/v1\\.0\\/me\\/drive\\/root\\:\\/Uploaded\\/.*\\:\\/content',@'graph\\.microsoft\\.com\\/v1\\.0\\/me\\/drive\\/root\\:\\/Downloaded\\/.*\\:\\/content']);\nCommonSecurityLog\n| where RequestURL has_any (oneDriveCalls) or RequestURL matches regex tostring(oneDriveCallsRegex[0]) or RequestURL matches regex tostring(oneDriveCallsRegex[1])\n| project TimeGenerated, DeviceVendor, DeviceProduct, DeviceAction, DestinationDnsDomain, DestinationIP, RequestURL, SourceIP, SourceHostName, RequestClientApplication",
+        "queryPeriod": "P1D",
+        "queryFrequency": "P1D",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "Exfiltration",
+          "CommandAndControl"
+        ],
+        "techniques": [
+          "T1567",
+          "T1102"
+        ],
+        "templateVersion": "1.0.1",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "b6d03b88-4d27-49a2-9c1c-29f1ad2842dc",
+        "enabled": true
+      }
+    }
+  ]
+}
