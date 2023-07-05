@@ -1,0 +1,86 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/5d69d4d6-1f0a-4dfc-9228-703436db9a22')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/5d69d4d6-1f0a-4dfc-9228-703436db9a22')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "KNOTWEED C2 Domains July 2022",
+        "description": "This query looks for references to known KNOTWEED Domains in network logs.\n  This query was published July 2022.\n  Ref: https://www.microsoft.com/security/blog/2022/07/27/untangling-knotweed-european-private-sector-offensive-actor-using-0-day-exploits/",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "AccountCustomEntity",
+                "identifier": "FullName"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "HostCustomEntity",
+                "identifier": "HostName"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "IPCustomEntity",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "let DomainNames = dynamic([\"acrobatrelay.com\", \"finconsult.cc\", \"realmetaldns.com\"]); \n(union isfuzzy=true \n(CommonSecurityLog  \n| parse Message with * '(' DNSName ')' *  \n| where DNSName in~ (DomainNames) \n| extend Account = SourceUserID, Computer = DeviceName, IPAddress =  DestinationIP \n), \n(_Im_Dns (domain_has_any=DomainNames)\n| extend DNSName = DnsQuery \n| extend IPAddress =  SrcIpAddr, Computer = Dvc\n), \n(_Im_WebSession (url_has_any=DomainNames)\n| extend DNSName = tostring(parse_url(Url)[\"Host\"])\n| extend IPAddress =  SrcIpAddr, Computer = Dvc\n), \n(VMConnection  \n| parse RemoteDnsCanonicalNames with * '[\"' DNSName '\"]' * \n| where isnotempty(DNSName) \n| where DNSName  in~ (DomainNames) \n| extend IPAddress = RemoteIp \n), \n( \n DeviceNetworkEvents \n| where isnotempty(RemoteUrl) \n| where RemoteUrl  has_any (DomainNames)  \n| extend IPAddress = RemoteIP \n| extend Computer = DeviceName \n),\n(AzureDiagnostics \n| where ResourceType == \"AZUREFIREWALLS\"\n| where Category == \"AzureFirewallApplicationRule\"\n| parse msg_s with Protocol 'request from ' SourceHost ':' SourcePort 'to ' DestinationHost ':' DestinationPort '. Action:' Action\n| where isnotempty(DestinationHost)\n| where DestinationHost has_any (DomainNames)  \n| extend DNSName = DestinationHost \n| extend IPAddress = SourceHost\n) \n) \n| extend timestamp = TimeGenerated, AccountCustomEntity = Account, HostCustomEntity = Computer, IPCustomEntity = IPAddress",
+        "queryPeriod": "P1D",
+        "queryFrequency": "P1D",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "CommandAndControl"
+        ],
+        "techniques": [
+          "T1071"
+        ],
+        "templateVersion": "1.0.1",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "ce02935c-cc67-4b77-9b96-93d9947e119a",
+        "enabled": true
+      }
+    }
+  ]
+}
