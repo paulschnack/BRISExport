@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/b6ec3bce-6521-4b4c-868a-18e9daf8b1f9')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/b6ec3bce-6521-4b4c-868a-18e9daf8b1f9')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-02-01-preview",
+      "properties": {
+        "displayName": "AdminSDHolder Modifications",
+        "description": "This query detects modification in the AdminSDHolder  in the Active Directory which could indicate an attempt for persistence. \nAdminSDHolder Modification is a persistence technique in which an attacker abuses the SDProp process in Active Directory to establish a persistent backdoor to Active Directory.\nThis query searches for the event id 5136 where the Object DN is AdminSDHolder.\nRef: https://attack.stealthbits.com/adminsdholder-modification-ad-persistence",
+        "alertDetailsOverride": null,
+        "customDetails": null,
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "SubjectAccount",
+                "identifier": "FullName"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "Computer",
+                "identifier": "FullName"
+              }
+            ]
+          }
+        ],
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "SecurityEvent\n| where EventID == 5136 and EventData contains \"<Data Name=\\\"ObjectDN\\\">CN=AdminSDHolder,CN=System\"\n| parse EventData with * 'ObjectDN\">' ObjectDN \"<\" *\n| summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by Computer, SubjectAccount, SubjectUserSid, SubjectLogonId, ObjectDN",
+        "queryPeriod": "PT1H",
+        "queryFrequency": "PT1H",
+        "sentinelEntitiesMappings": null,
+        "severity": "High",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "tactics": [
+          "Persistence"
+        ],
+        "techniques": [
+          "T1078"
+        ],
+        "templateVersion": "1.0.2",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "alertRuleTemplateName": "52aec824-96c1-4a03-8e44-bb70532e6cea",
+        "enabled": true
+      }
+    }
+  ]
+}
